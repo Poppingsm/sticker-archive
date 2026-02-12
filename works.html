@@ -1,0 +1,150 @@
+<!DOCTYPE HTML>
+<html lang="ja">
+<head>
+    <title>Gallery | STICKER ARCHIVE</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+    <link rel="stylesheet" href="assets/css/main.css" />
+    <style>
+        html, body { height: auto; min-height: 100%; overflow-y: auto; }
+        body { background: #f0f0f0; color: #181b5a; font-family: sans-serif; }
+        .container { padding: 40px 20px; max-width: 1200px; margin: auto; padding-bottom: 100px; }
+        h1, h2 { color: #181b5a !important; font-weight: bold; border-bottom: 2px solid #181b5a; padding-bottom: 10px; }
+        .gallery-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 30px; margin-top: 30px; }
+        .post-card { background: white; padding: 20px; border-radius: 15px; box-shadow: 0 10px 20px rgba(0,0,0,0.08); text-align: center; border: 1px solid rgba(24, 27, 90, 0.1); transition: transform 0.3s ease; }
+        .post-card:hover { transform: translateY(-5px); }
+        .post-card img { max-width: 100%; height: 200px; object-fit: contain; border-radius: 10px; background: #f9f9f9; margin-bottom: 15px; }
+        .author-info { font-size: 0.9rem; color: #181b5a; margin-bottom: 5px; font-weight: bold; }
+        .post-date { font-size: 0.75rem; color: #888; margin-bottom: 15px; }
+        .btn-use-template { background: #181b5a; color: white; border: none; padding: 10px 15px; border-radius: 5px; cursor: pointer; width: 100%; font-weight: bold; transition: background 0.3s; }
+        .btn-use-template:hover { background: #3238a0; }
+        .nav-buttons { margin-bottom: 40px; display: flex; gap: 15px; }
+        /* 管理者用削除ボタンのスタイル */
+        .btn-admin-delete { background: #ff3333; color: white; border: none; padding: 8px; cursor: pointer; border-radius: 5px; width: 100%; margin-top: 10px; font-weight: bold; transition: opacity 0.3s; }
+        .btn-admin-delete:hover { opacity: 0.8; }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>Sticker Gallery</h1>
+        <p>世界中のクリエイターが投稿したステッカーをアレンジしよう！</p>
+
+        <div class="nav-buttons">
+            <a href="index.html" class="button">ホームに戻る</a>
+            <a href="create3.html" class="button primary">新しく作る</a>
+            <a href="mypage.html" class="button">マイページ</a>
+        </div>
+
+        <div id="galleryList" class="gallery-grid"></div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+
+        // Firebase 設定
+        const firebaseConfig = {
+            apiKey: "AIzaSyB8KXY15FWlENk7aohJM9D3-ZRkGqAhv7g",
+            authDomain: "sticker-archive.firebaseapp.com",
+            projectId: "sticker-archive",
+            storageBucket: "sticker-archive.firebasestorage.app",
+            messagingSenderId: "868816157027",
+            appId: "1:868816157027:web:900f1deff73e823251bb56"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+
+        let currentUser = null;
+
+        // ログイン状態の確認
+        onAuthStateChanged(auth, (user) => {
+            currentUser = user;
+            renderGallery();
+        });
+
+        // ギャラリーの描画
+        function renderGallery() {
+            const galleryList = document.getElementById("galleryList");
+            const galleryData = JSON.parse(localStorage.getItem("gallery")) || [];
+
+            if (galleryData.length === 0) {
+                galleryList.innerHTML = `<div style="grid-column: 1/-1; text-align: center; padding: 50px;"><p>まだ投稿作品がありません。</p></div>`;
+                return;
+            }
+
+            // 管理者フラグの確認
+            const isAdmin = localStorage.getItem("isAdmin") === "true";
+
+            galleryList.innerHTML = "";
+
+            galleryData.forEach((post, index) => {
+                const card = document.createElement("div");
+                card.className = "post-card";
+
+                // 管理者のみ削除ボタンを表示
+                let deleteBtn = "";
+                if (isAdmin) {
+                    deleteBtn = `
+                        <button onclick="window.deletePost(${index})" class="btn-admin-delete">
+                            作品を削除（管理者権限）
+                        </button>
+                    `;
+                }
+
+                card.innerHTML = `
+                    <img src="${post.imageData}">
+                    <div class="author-info">作者: ${post.author || '不明'}</div>
+                    <div class="post-date">${post.date || ''}</div>
+                    <button onclick="window.useAsTemplate(${index})" class="btn-use-template">テンプレートとして使う</button>
+                    ${deleteBtn}
+                `;
+                galleryList.appendChild(card);
+            });
+        }
+
+        // テンプレートとして使う機能
+        window.useAsTemplate = function(index) {
+            const gallery = JSON.parse(localStorage.getItem("gallery")) || [];
+            const selectedWork = gallery[index];
+            
+            if (!selectedWork || !selectedWork.layers) {
+                alert("この作品は編集データを持っていません。");
+                return;
+            }
+
+            if (!currentUser) {
+                alert("テンプレート機能を使うにはログインが必要です。");
+                window.location.href = "login.html";
+                return;
+            }
+
+            // 読み込み時に背景色が消えないよう、背景色情報があればそれも保存
+            if (selectedWork.backgroundColor) {
+                localStorage.setItem("templateBgColor", selectedWork.backgroundColor);
+            }
+            localStorage.setItem("templateData", JSON.stringify(selectedWork.layers));
+            window.location.href = "create3.html?template=true";
+        };
+
+        // 削除機能（管理者専用）
+        window.deletePost = function(index) {
+            // 関数実行時にもう一度管理者チェック
+            const isAdmin = localStorage.getItem("isAdmin") === "true";
+            if (!isAdmin) {
+                alert("管理者権限が必要です。");
+                return;
+            }
+
+            if (confirm("管理者として、この作品を完全に削除しますか？")) {
+                let posts = JSON.parse(localStorage.getItem("gallery")) || [];
+                posts.splice(index, 1);
+                localStorage.setItem("gallery", JSON.stringify(posts));
+                renderGallery(); 
+                alert("作品を削除しました。");
+            }
+        };
+    </script>
+</body>
+</html>

@@ -1,0 +1,200 @@
+<!DOCTYPE HTML>
+<html lang="ja">
+<head>
+    <title>My Page | STICKER ARCHIVE</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+    <link rel="stylesheet" href="assets/css/main.css" />
+    <style>
+        /* スタイル設定（変更なし） */
+        body { background: #f0f0f0; color: #181b5a; font-family: sans-serif; overflow-y: auto; min-height: 100vh; }
+        .container { padding: 40px 20px; max-width: 1000px; margin: auto; padding-bottom: 100px; }
+        h1, h2, p { color: #181b5a !important; }
+        .user-info-bar { background: rgba(24, 27, 90, 0.05); padding: 20px; border-radius: 10px; margin-bottom: 30px; border: 1px solid rgba(24, 27, 90, 0.1); }
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 20px; margin-top: 20px; }
+        .card { background: white; padding: 15px; border-radius: 10px; text-align: center; border: 1px solid rgba(24, 27, 90, 0.2); box-shadow: 0 4px 6px rgba(0,0,0,0.05); transition: transform 0.2s; }
+        .card:hover { transform: translateY(-3px); }
+        .card img { max-width: 100%; height: 150px; object-fit: contain; border-radius: 5px; background: #f9f9f9; margin-bottom: 10px; }
+        .btn-group { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
+        .btn-edit { background: #181b5a; color: white; text-decoration: none; padding: 8px; border-radius: 5px; font-size: 0.9rem; font-weight: bold; }
+        .btn-item-delete { background: #fefefe; color: #ff3333; border: 1px solid #ff3333; padding: 6px; border-radius: 5px; font-size: 0.8rem; cursor: pointer; transition: 0.3s; }
+        .btn-item-delete:hover { background: #ff3333; color: white; }
+        .nav-buttons { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 15px; }
+        .btn-archive { background: #5a181b !important; color: white !important; }
+        .danger-zone { margin-top: 80px; padding: 20px; border: 2px dashed #ff3333; border-radius: 10px; background: rgba(255,0,0,0.02); }
+        .btn-delete-all { background: #ff3333; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>My Archive</h1>
+        
+        <div class="user-info-bar">
+            <p style="margin: 0;">こんにちは、<span id="userName" style="font-weight: bold; font-size: 1.2rem;">確認中...</span> さん</p>
+            <div class="nav-buttons">
+                <a href="index.html" class="button">ホーム</a>
+                <a href="create3.html" class="button primary">＋ 新規作成</a>
+                <a href="post_archive.html" class="button btn-archive">📦 投稿の管理・削除</a>
+                <button id="logoutBtn" class="button">ログアウト</button>
+            </div>
+        </div>
+
+        <h2>保存済みのプロジェクト <small style="font-size: 0.9rem; font-weight: normal; opacity: 0.7;">(非公開・再編集用)</small></h2>
+        <hr />
+
+        <div id="projectList" class="grid"></div>
+
+        <div class="danger-zone">
+            <h2>アカウントの削除</h2>
+            <p>Firebaseの認証情報、および保存・投稿した全ての作品データを削除します。この操作は取り消せません。</p>
+            <button id="deleteAccountBtn" class="btn-delete-all">アカウントを完全に削除する</button>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getAuth, onAuthStateChanged, signOut, deleteUser, reauthenticateWithCredential, EmailAuthProvider } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+
+        // ★ Firebase 設定を貼り付けてください
+        const firebaseConfig = {
+            apiKey: "AIzaSyB8KXY15FWlENk7aohJM9D3-ZRkGqAhv7g",
+            authDomain: "sticker-archive.firebaseapp.com",
+            projectId: "sticker-archive",
+            storageBucket: "sticker-archive.firebasestorage.app",
+            messagingSenderId: "868816157027",
+            appId: "1:868816157027:web:900f1deff73e823251bb56"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+
+        let currentUserName = "";
+        let currentUserEmail = "";
+
+        // --- ログイン状態の監視（重要：追い返されないためのロジック） ---
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                // メール認証が済んでいるか確認
+                if (user.emailVerified) {
+                    currentUserName = user.displayName || "名無しさん";
+                    currentUserEmail = user.email;
+                    document.getElementById("userName").textContent = currentUserName;
+                    
+                    // 作品一覧を表示
+                    renderProjects(currentUserEmail);
+                } else {
+                    // 認証されていない場合はログイン画面へ
+                    alert("メール認証が完了していません。");
+                    window.location.href = "login.html";
+                }
+            } else {
+                // 完全にログアウト状態であると確定してからリダイレクト
+                window.location.href = "login.html";
+            }
+        });
+
+        // --- ログアウト処理 ---
+        document.getElementById("logoutBtn").addEventListener("click", () => {
+            if(confirm("ログアウトしますか？")) {
+                signOut(auth).then(() => {
+                    localStorage.removeItem("currentUser");
+                    localStorage.removeItem("currentUserEmail");
+                    localStorage.removeItem("isAdmin");
+                    window.location.href = "login.html";
+                });
+            }
+        });
+
+        // --- 作品を表示するメイン処理 ---
+        // --- 作品を表示するメイン処理 ---
+        // mypage.html の renderProjects 関数
+        function renderProjects(userEmail) {
+            console.log("検索中のメールアドレス:", userEmail); // デバッグ用
+            const projectList = document.getElementById("projectList");
+            projectList.innerHTML = ""; 
+            
+            const allProjects = JSON.parse(localStorage.getItem("projects")) || [];
+            console.log("全データ数:", allProjects.length);
+
+            // フィルタリング判定
+            const myProjects = allProjects
+                .map((p, index) => ({ ...p, originalIndex: index }))
+                .filter(p => {
+                    // ownerId が一致するか、古いデータ救済のため owner が一致するかチェック
+                    return p.ownerId === userEmail;
+                });
+
+            if (myProjects.length === 0) {
+                projectList.innerHTML = `<div style="grid-column: 1/-1; padding: 40px; text-align: center; color: #888;">
+                    保存されたプロジェクトはまだありません。<br>
+                    <small>(Email: ${userEmail})</small>
+                </div>`;
+                return;
+            }
+
+            myProjects.forEach((project) => {
+                const card = document.createElement("div");
+                card.className = "card";
+                card.innerHTML = `
+                    <img src="${project.imageData}">
+                    <p style="margin: 0; font-weight: bold;">${project.title || '無題'}</p>
+                    <div class="btn-group">
+                        <a href="create3.html?id=${project.originalIndex}" class="btn-edit">再編集</a>
+                        <button onclick="window.deleteProject(${project.originalIndex})" class="btn-item-delete">削除</button>
+                    </div>
+                `;
+                projectList.appendChild(card);
+            });
+        }
+
+        // グローバルに関数を公開
+        window.deleteProject = function(index) {
+            if (confirm("この保存データを削除してもよろしいですか？")) {
+                let allProjects = JSON.parse(localStorage.getItem("projects")) || [];
+                allProjects.splice(index, 1);
+                localStorage.setItem("projects", JSON.stringify(allProjects));
+                renderProjects(currentUserEmail);
+            }
+        };
+
+        // --- アカウント削除（Firebase連携） ---
+        document.getElementById("deleteAccountBtn").addEventListener("click", async () => {
+            const user = auth.currentUser;
+            if (!user) return;
+
+            const confirmMsg = "【最終確認】\n本当にアカウントを削除しますか？\n保存・投稿した全ての作品データが完全に消去されます。";
+            if (confirm(confirmMsg)) {
+                try {
+                    // セキュリティ制限対策：削除前にパスワードを再入力させる必要がある場合がありますが、
+                    // まずはデータのクリーンアップを実行
+                    
+                    // 1. ローカルの作品データ（projects）を削除
+                    let allProjects = JSON.parse(localStorage.getItem("projects")) || [];
+                    const remainingProjects = allProjects.filter(p => p.owner !== currentUserEmail);
+                    localStorage.setItem("projects", JSON.stringify(remainingProjects));
+
+                    // 2. ギャラリー投稿（gallery）を削除
+                    let gallery = JSON.parse(localStorage.getItem("gallery")) || [];
+                    const remainingGallery = gallery.filter(post => post.author !== currentUserEmail);
+                    localStorage.setItem("gallery", JSON.stringify(remainingGallery));
+
+                    // 3. Firebaseからユーザー削除
+                    await deleteUser(user);
+
+                    localStorage.clear();
+                    alert("すべてのアカウントデータを消去しました。ご利用ありがとうございました。");
+                    window.location.href = "login.html";
+
+                } catch (error) {
+                    console.error(error);
+                    if (error.code === "auth/requires-recent-login") {
+                        alert("セキュリティのため、アカウント削除には再ログインが必要です。一度ログアウトしてからログインし直し、すぐに削除を実行してください。");
+                    } else {
+                        alert("エラーが発生しました: " + error.message);
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+</html>

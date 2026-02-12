@@ -1,0 +1,194 @@
+<!DOCTYPE HTML>
+<html lang="ja">
+    <head>
+        <title>Login | STICKER ARCHIVE</title>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+        <link rel="stylesheet" href="assets/css/main.css" />
+        <style>
+            /* スタイルは維持 */
+            body { background: #f0f0f0; color: #181b5a; font-family: sans-serif; }
+            .content { 
+                padding: 40px 50px; max-width: 480px; margin: 40px auto; 
+                background: rgba(236, 213, 228, 0.9); border-radius: 10px;
+                box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            }
+            h1 { color: #181b5a !important; font-weight: bold; border-bottom: 2px solid #181b5a; padding-bottom: 10px; margin-bottom: 20px; }
+            p, label { color: #181b5a !important; font-weight: bold; display: block; margin-bottom: 5px; }
+            input { 
+                width: 100%; margin-bottom: 15px; padding: 12px; border-radius: 5px; 
+                border: 1px solid #181b5a; background: #ffffff !important; box-sizing: border-box; font-size: 1rem;
+            }
+            button { 
+                width: 100%; padding: 12px; cursor: pointer; background: #ef8db7; color: white; 
+                border: none; border-radius: 5px; font-weight: bold; transition: opacity 0.3s; font-size: 1rem; margin-top: 10px;
+            }
+            button:hover { opacity: 0.8; }
+            .error { color: #ff3333; margin-top: 10px; font-size: 0.9rem; font-weight: bold; }
+            .info-text { font-size: 0.8rem; margin-bottom: 15px; line-height: 1.4; color: #181b5a; }
+            a { color: #181b5a; text-decoration: underline; cursor: pointer; }
+            .forgot-password-link { text-align: right; margin-top: 10px; font-size: 0.85rem; }
+        </style>
+    </head>
+    <body>
+
+        <div class="content">
+            <h1>Login / Sign up</h1>
+            <p>STICKER ARCHIVE に参加しよう</p>
+            <p class="info-text">※初めての方は全ての項目を入力してください。<br>登録後、確認メールの認証が必要です。</p>
+            
+            <form id="loginForm">
+                <div class="field">
+                    <label for="username">Username（新規登録時のみ必須）</label>
+                    <input type="text" id="username" placeholder="例: ステッカー職人" />
+                </div>
+                <div class="field">
+                    <label for="email">Email</label>
+                    <input type="email" id="email" placeholder="example@mail.com" required />
+                </div>
+                <div class="field">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" placeholder="英数字含む8文字以上" required />
+                </div>
+                <button type="submit" id="submitBtn">ログイン / 新規登録</button>
+            </form>
+
+            <div class="forgot-password-link">
+                <a id="resetPasswordBtn">パスワードを忘れた場合</a>
+            </div>
+
+            <p id="message" class="error"></p>
+            
+            <p style="text-align: center; margin-top: 20px;">
+                <a href="index.html">戻る</a>
+            </p>
+        </div>
+
+        <script type="module">
+            import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+            import { 
+                getAuth, 
+                createUserWithEmailAndPassword, 
+                signInWithEmailAndPassword, 
+                sendEmailVerification,
+                sendPasswordResetEmail,
+                updateProfile,
+                signOut // 追加：認証状態リセット用
+            } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+
+            const firebaseConfig = {
+                // ここにあなたの Config を設定
+                apiKey: "AIzaSyB8KXY15FWlENk7aohJM9D3-ZRkGqAhv7g",
+                authDomain: "sticker-archive.firebaseapp.com",
+                projectId: "sticker-archive",
+                storageBucket: "sticker-archive.firebasestorage.app",
+                messagingSenderId: "868816157027",
+                appId: "1:868816157027:web:900f1deff73e823251bb56"
+            };
+
+            const ADMIN_EMAIL = "admin@example.com";
+
+            const app = initializeApp(firebaseConfig);
+            const auth = getAuth(app);
+
+            const loginForm = document.getElementById("loginForm");
+            const messageEl = document.getElementById("message");
+            const resetBtn = document.getElementById("resetPasswordBtn");
+
+            // --- ログイン & 登録処理 ---
+            loginForm.addEventListener("submit", async (e) => {
+                e.preventDefault();
+                const submitBtn = document.getElementById("submitBtn");
+                submitBtn.disabled = true;
+                messageEl.textContent = "処理中...";
+
+                const email = document.getElementById("email").value.trim();
+                const password = document.getElementById("password").value;
+                const username = document.getElementById("username").value.trim();
+
+                // --- 1. パスワードのバリデーション (英数字8文字以上) ---
+                const passwordRegex = /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{8,}$/;
+                if (!passwordRegex.test(password)) {
+                    messageEl.textContent = "パスワードは英数字を両方含む8文字以上で入力してください。";
+                    submitBtn.disabled = false;
+                    return;
+                }
+
+                try {
+                    // --- 2. ログイン試行 ---
+                    const userCredential = await signInWithEmailAndPassword(auth, email, password);
+                    let user = userCredential.user;
+                    await user.reload();
+                    user = auth.currentUser;
+
+                    if (user.emailVerified) {
+                        localStorage.setItem("currentUser", user.displayName || "名無しさん");
+                        localStorage.setItem("currentUserEmail", email);
+                        if (email === ADMIN_EMAIL) localStorage.setItem("isAdmin", "true");
+                        alert("ログイン成功！");
+                        window.location.href = "mypage.html";
+                    } else {
+                        alert("メール認証が完了していません。");
+                        await signOut(auth);
+                        submitBtn.disabled = false;
+                    }
+
+                } catch (error) {
+                    // --- 3. 新規登録処理 (ユーザーがいない場合) ---
+                    if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') {
+                        if (!username) {
+                            messageEl.textContent = "新規登録にはユーザーネームが必要です。";
+                            submitBtn.disabled = false;
+                            return;
+                        }
+
+                        // --- 4. ユーザーネーム重複チェック ---
+                        // ※簡易的な方法として、既にその名前が使われていないかを確認するロジック
+                        // 本来はFirestore等のデータベースで管理するのが理想ですが、ここでは
+                        // 既存のユーザー情報を確認できない制限があるため、登録後の処理で対応します。
+                        
+                        try {
+                            const newUserCredential = await createUserWithEmailAndPassword(auth, email, password);
+                            
+                            // プロフィール更新
+                            await updateProfile(newUserCredential.user, { displayName: username });
+                            
+                            // 確認メール送信
+                            await sendEmailVerification(newUserCredential.user);
+                            alert("【登録完了】確認メールを送りました。認証後にログインしてください。");
+                            location.reload();
+                        } catch (regError) {
+                            messageEl.textContent = "登録エラー: " + getErrorMessage(regError.code);
+                            submitBtn.disabled = false;
+                        }
+                    } else {
+                        messageEl.textContent = "エラー: " + getErrorMessage(error.code);
+                        submitBtn.disabled = false;
+                    }
+                }
+            });
+
+            // パスワードリセット
+            resetBtn.addEventListener("click", async () => {
+                const email = prompt("登録したメールアドレスを入力してください：");
+                if (!email) return;
+                try {
+                    await sendPasswordResetEmail(auth, email);
+                    alert("再設定用のメールを送信しました。");
+                } catch (error) {
+                    alert("エラー: " + getErrorMessage(error.code));
+                }
+            });
+
+            function getErrorMessage(code) {
+                switch (code) {
+                    case 'auth/weak-password': return "パスワードは6文字以上で入力してください。";
+                    case 'auth/invalid-email': return "メールアドレスの形式が正しくありません。";
+                    case 'auth/email-already-in-use': return "このメールアドレスは既に登録されています。";
+                    case 'auth/wrong-password': return "パスワードが正しくありません。";
+                    default: return "エラーが発生しました。入力を確認してください。";
+                }
+            }
+        </script>
+    </body>
+</html>

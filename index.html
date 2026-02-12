@@ -1,0 +1,101 @@
+<!DOCTYPE HTML>
+<!--
+	Ethereal by HTML5 UP
+	html5up.net | @ajlkn
+	Free for personal and commercial use under the CCA 3.0 license
+-->
+<html>
+	<head>
+		<title>STICKER ARCHIVE</title>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+		<link rel="stylesheet" href="assets/css/main.css" />
+		<noscript><link rel="stylesheet" href="assets/css/noscript.css" /></noscript>
+	</head>
+
+	<body class="is-preload">
+
+		<!-- Page Wrapper -->
+		<div id="page-wrapper">
+
+			<!-- Wrapper -->
+			<div id="wrapper">
+
+				<!-- ===== Hero / Banner ===== -->
+				<section class="panel banner right">
+					<div class="content color0 span-3-75">
+						<h1 class="major">STICKER ARCHIVE</h1>
+						<p>
+							「バズる場所」じゃなく、<br />
+							「残る場所」
+						</p>
+
+						<ul class="actions">
+							<li>
+								<a href="create3.html"
+								   class="button primary color1 circle icon solid fa-angle-right">
+									Create
+								</a>
+							</li>
+						</ul>
+
+						<ul class="actions">
+							<li><a href="login.html" class="button">Login / Sign up</a></li>
+							<li><a href="mypage.html" class="button">My Page</a></li>
+							<li><a href="works.html" class="button">View Works</a></li>
+						</ul>
+					</div>
+
+					<div class="image filtered span-1-75" data-position="25% 25%">
+						<img src="images/pic01.jpg" alt="" />
+					</div>
+				</section>
+
+				<!-- ===== Works Preview ===== -->
+				<section class="panel">
+					<div class="intro color2">
+						<h2 class="major">Featured Works</h2>
+						<p>みんなの公開ステッカー</p>
+					</div>
+
+					<div class="gallery" id="worksPreview">
+						<!-- JSで公開作品を自動挿入 -->
+					</div>
+
+					<div class="actions">
+						<a href="works.html" class="button primary">See All Works</a>
+					</div>
+				</section>
+
+				<!-- ===== Footer ===== -->
+				<div class="copyright">
+					&copy; STICKER ARCHIVE. Design:
+					<a href="https://html5up.net">HTML5 UP</a>.
+				</div>
+
+			</div>
+		</div>
+
+		<!-- ===== Scripts ===== -->
+		<script src="assets/js/jquery.min.js"></script>
+		<script src="assets/js/browser.min.js"></script>
+		<script src="assets/js/breakpoints.min.js"></script>
+		<script src="assets/js/main.js"></script>
+
+		<!-- ===== Works Preview Logic ===== -->
+		<script>
+			const projects = JSON.parse(localStorage.getItem("projects")) || [];
+			const published = projects.filter(p => p.published).slice(0, 6);
+			const container = document.getElementById("worksPreview");
+
+			published.forEach(p => {
+				const a = document.createElement("a");
+				a.className = "image filtered span-2";
+				a.href = "works.html";
+				a.innerHTML = `<img src="${p.image}" alt="">`;
+				container.appendChild(a);
+			});
+		</script>
+
+	</body>
+</html>

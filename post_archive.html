@@ -1,0 +1,128 @@
+<!DOCTYPE HTML>
+<html lang="ja">
+<head>
+    <title>Post Archive | STICKER ARCHIVE</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+    <link rel="stylesheet" href="assets/css/main.css" />
+    <style>
+        body { background: #f0f0f0; color: #181b5a; overflow-y: auto; }
+        .container { padding: 40px 20px; max-width: 1000px; margin: auto; }
+        
+        h1 { border-bottom: 2px solid #181b5a; padding-bottom: 10px; }
+
+        .archive-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 25px;
+            margin-top: 30px;
+        }
+
+        .archive-card {
+            background: white;
+            padding: 15px;
+            border-radius: 12px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+
+        .archive-card img {
+            width: 100%;
+            height: 180px;
+            object-fit: contain;
+            background: #fafafa;
+            border-radius: 8px;
+            margin-bottom: 10px;
+        }
+
+        .delete-btn {
+            background: #ff4d4d;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            width: 100%;
+            margin-top: 10px;
+        }
+
+        .delete-btn:hover { background: #e60000; }
+        
+        .nav-link { margin-bottom: 20px; display: inline-block; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>投稿アーカイブ</h1>
+        <p id="userStatus"></p>
+        
+        <div class="nav-link">
+            <a href="mypage.html" class="button">マイページに戻る</a>
+        </div>
+
+        <div id="archiveList" class="archive-grid">
+            </div>
+    </div>
+
+    <script>
+        const currentUser = localStorage.getItem("currentUser");
+
+        function renderArchive() {
+            const archiveList = document.getElementById("archiveList");
+            const gallery = JSON.parse(localStorage.getItem("gallery")) || [];
+            
+            // 自分の投稿だけをフィルタリング
+            // galleryの中の author と 現在のユーザーネームを比較
+            const myPosts = gallery.filter(post => post.author === currentUser);
+
+            if (myPosts.length === 0) {
+                archiveList.innerHTML = "<p>まだ投稿した作品はありません。</p>";
+                return;
+            }
+
+            archiveList.innerHTML = "";
+            
+            // 全体のgallery配列におけるインデックスを保持したまま表示
+            gallery.forEach((post, index) => {
+                if (post.author === currentUser) {
+                    const card = document.createElement("div");
+                    card.className = "archive-card";
+                    card.innerHTML = `
+                        <img src="${post.imageData}">
+                        <div style="font-size:0.8rem; color:#666;">${post.date}</div>
+                        <button class="delete-btn" onclick="deletePost(${index})">投稿を削除する</button>
+                    `;
+                    archiveList.appendChild(card);
+                }
+            });
+        }
+
+        function deletePost(index) {
+            if (!confirm("この投稿をギャラリーから削除してもよろしいですか？\n(マイページに保存したデータは消えません)")) return;
+
+            let gallery = JSON.parse(localStorage.getItem("gallery")) || [];
+            
+            // 指定したインデックスの投稿を削除
+            gallery.splice(index, 1);
+            
+            // LocalStorageを更新
+            localStorage.setItem("gallery", JSON.stringify(gallery));
+            
+            // 再描画
+            renderArchive();
+            alert("削除しました。");
+        }
+
+        window.onload = () => {
+            if (!currentUser) {
+                alert("ログインが必要です");
+                window.location.href = "login.html";
+                return;
+            }
+            document.getElementById("userStatus").textContent = `${currentUser} さんの投稿管理`;
+            renderArchive();
+        };
+    </script>
+</body>
+</html>
